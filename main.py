@@ -1,6 +1,7 @@
 import csv
 from math import log
 from collections import defaultdict, Counter
+from tabnanny import check
 import this
 from datetime import datetime
 import statistics
@@ -17,7 +18,6 @@ from datetime import datetime
 """
 
 # Expand this:
-food_business_list0 = ['restaurant', 'food', 'cafe', 'pub']
 food_business_list = ['restaurant', 'food', 'cafe', 'pub', 'Afghan', 'African', 'Senegalese', 'South African', 'American (New)', 'American (Traditional)', 'Arabian', 'Argentine', 'Armenian', 'Asian Fusion', 'Australian', 'Austrian', 'Bangladeshi', 'Barbeque', 'Basque', 'Belgian', 'Brasseries', 'Brazilian', 'Breakfast & Brunch', 'Pancakes', 'British', 'Buffets', 'Bulgarian', 'Burgers', 'Burmese', 'Cafes', 'Themed Cafes', 'Cafeteria', 'Cajun/Creole', 'Cambodian', 'Caribbean', 'Dominican', 'Haitian', 'Puerto Rican', 'Trinidadian', 'Catalan', 'Cheesesteaks', 'Chicken Shop', 'Chicken Wings', 'Chinese', 'Cantonese', 'Dim Sum', 'Hainan', 'Shanghainese', 'Szechuan', 'Comfort Food', 'Creperies', 'Cuban', 'Czech', 'Delis', 'Diners', 'Dinner Theater', 'Eritrean', 'Ethiopian', 'Fast Food', 'Filipino', 'Fish & Chips', 'Fondue', 'Food Court', 'Food Stands', 'French', 'Mauritius', 'Reunion', 'Game Meat', 'Gastropubs', 'Georgian', 'German', 'Gluten-Free', 'Greek', 'Guamanian', 'Halal', 'Hawaiian', 'Himalayan/Nepalese', 'Honduran', 'Hong Kong Style Cafe', 'Hot Dogs',
                       'Hot Pot', 'Hungarian', 'Iberian', 'Indian', 'Indonesian', 'Irish', 'Italian', 'Calabrian', 'Sardinian', 'Sicilian', 'Tuscan', 'Japanese', 'Conveyor Belt Sushi', 'Izakaya', 'Japanese Curry', 'Ramen', 'Teppanyaki', 'Kebab', 'Korean', 'Kosher', 'Laotian', 'Latin American', 'Colombian', 'Salvadoran', 'Venezuelan', 'Live/Raw Food', 'Malaysian', 'Mediterranean', 'Falafel', 'Mexican', 'Tacos', 'Middle Eastern', 'Egyptian', 'Lebanese', 'Modern European', 'Mongolian', 'Moroccan', 'New Mexican Cuisine', 'Nicaraguan', 'Noodles', 'Pakistani', 'Pan Asia', 'Persian/Iranian', 'Peruvian', 'Pizza', 'Polish', 'Polynesian', 'Pop-Up Restaurants', 'Portuguese', 'Poutineries', 'Russian', 'Salad', 'Sandwiches', 'Scandinavian', 'Scottish', 'Seafood', 'Singaporean', 'Slovakian', 'Somali', 'Soul Food', 'Soup', 'Southern', 'Spanish', 'Sri Lankan', 'Steakhouses', 'Supper Clubs', 'Sushi Bars', 'Syrian', 'Taiwanese', 'Tapas Bars', 'Tapas/Small Plates', 'Tex-Mex', 'Thai', 'Turkish', 'Ukrainian', 'Uzbek', 'Vegan', 'Vegetarian', 'Vietnamese', 'Waffles', 'Wraps']
 weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
@@ -38,11 +38,22 @@ def parseArguments():
                         help="Read Review Data", action="store_true")
     return parser.parse_args()
 
+def load_checkin_data(path):
+    checkin_dict = {}
 
-def load_business_data(path):
+    with open(path) as f:
+        for b in f:
+            business = json.loads(b)
+            business_id = business["business_id"].replace('-', '')
+            checkin_dates = business["date"].split(',')
+            last_checkin = checkin_dates[-1].replace(' ', '')[0:4]
+            checkin_dict.update({business_id: last_checkin})
+    return checkin_dict
+
+def load_business_data(path, checkin_dict):
     business_list_lasso = []
     business_list_data = []
-    attributes_list = []
+    attributes_list = {}
     print("Reading in Business JSON File")
     with open(path) as f:
         for business in f:
@@ -50,6 +61,10 @@ def load_business_data(path):
             # Check if business is restaurant
             categories = business_dict["categories"]
             if categories != None and any(x in categories for x in food_business_list):
+                # Check if open OR if closed during pandemic 
+                # Do stuff
+
+                # Generate Features
                 business_id = business_dict["business_id"]
                 business_features = {}
                 # Clean up features of the business
@@ -69,9 +84,17 @@ def load_business_data(path):
                     {"review_count": business_dict["review_count"]})
                 business_features.update({"is_open": business_dict["is_open"]})
                 # Do stuff to attributes to create features
-                if business_dict["attributes"] != None:
-                    for attribute in business_dict["attributes"].keys():
-                        attributes_list.append(attribute) if attribute not in attributes_list else attributes_list
+                # if business_dict["attributes"] != None:
+                #     for attribute in business_dict["attributes"].keys():
+                #         if business_dict["attributes"][attribute] != None:
+                #             attributes_list.update({attribute: business_dict["attributes"][attribute]})
+                business_features.update({"price_range" : int(business_dict["attributes"]["RestaurantsPriceRange2"])})
+                parking = json.loads(business_dict["attributes"]["BusinessParking"])
+                parking_ind = 0
+                for parking_type in parking.keys():
+                    if parking[parking_type] == True:
+                        parking_ind = 1
+                business_features.update({"parking" : parking_ind})
                 # Do stuff to hours to create features
                 open_days = 0
                 for day in days_of_week:
@@ -103,20 +126,26 @@ def load_business_data(path):
 
                 business_list_lasso.append((business_id, business_features))
                 business_list_data.append((business_id, business_dict))
+
+
     # for i in range(10):
     #     print(business_list[i]["name"])
         # print(business_list[i]["categories"])
-    print(business_list_lasso[500][1]["Wednesday"])
-    print(attributes_list)
+    # print(business_list_lasso[500][1]["Wednesday"])
+    # print(business_list_data[500][1]["attributes"]["BusinessParking"]["garage"])
     # print(len(business_list))
+
+
+    print(attributes_list)
     f.close()
     return business_list_lasso, business_list_data
 
 
 def main(args):
     if args.readbusinessdata:
+        checkin_dict = load_checkin_data("yelp_dataset/yelp_academic_dataset_checkin.json")
         business_list = load_business_data(
-            "yelp_dataset/yelp_academic_dataset_business.json")
+            "yelp_dataset/yelp_academic_dataset_business.json", checkin_dict)
         with open('business_list', 'wb') as file:
             pickle.dump(business_list, file)
     else:
