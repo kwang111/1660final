@@ -64,9 +64,6 @@ def load_business_data(path, checkin_dict):
     with open(path) as f:
         for business in f:
 
-            if business_counter % 10000 == 0:
-                print("Loaded " + str(business_counter) + " businesses data")
-
             # ♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡ #
             # First throwing away businesses that are not fit for our analysis
             business_dict = json.loads(business)
@@ -96,6 +93,11 @@ def load_business_data(path, checkin_dict):
                 # Check if business has attributes
                 if business_dict["attributes"] == None:
                     continue
+
+                # ♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡ #
+                # Print out progress
+                if business_counter % 10000 == 1:
+                    print("Loaded " + str(business_counter) + " businesses data")
 
                 # ♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡ #
                 # Clean up features of the business, making indicators
@@ -220,7 +222,7 @@ def load_business_data(path, checkin_dict):
                         d1 = datetime.strptime(d1, '%H:%M')
                         d2 = datetime.strptime(d2, '%H:%M')
                         business_features.update(
-                            {day: int((d2-d1).seconds / 60)})
+                            {day: int((d2-d1).seconds / 3600)})
                         open_days += 1
                     else:
                         business_features.update({day: 0})
@@ -254,12 +256,22 @@ def load_business_data(path, checkin_dict):
     print("Businesses in filtered dataset: " + str(business_counter))
     print("Closed businesses in filtered dataset: " +
           str(closed_business_counter))
-    print(business_list_lasso[500][1])
+    print(business_list_lasso[100:150])
     # print(business_list_data[500][1]["attributes"]["BusinessParking"]["garage"])
     # print(len(business_list))
     f.close()
     return business_list_lasso, business_list_data
 
+def load_review_data(path, business_list_lasso, business_list_data):
+    print("Reading in Review JSON File")
+    with open(path) as f:
+        for review in f:
+            print(review)
+        # # ♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡ #
+        #     # First throwing away businesses that are not fit for our analysis
+        #     review_dict = json.loads(review)
+
+    return business_list_lasso, business_list_data
 
 def main(args):
     if args.readbusinessdata:
@@ -267,12 +279,29 @@ def main(args):
             "yelp_dataset/yelp_academic_dataset_checkin.json")
         business_list_lasso, business_list_data = load_business_data(
             "yelp_dataset/yelp_academic_dataset_business.json", checkin_dict)
-        with open('business_list', 'wb') as file:
-            pickle.dump(business_list, file)
+        with open('business_list_lasso', 'wb') as file:
+            pickle.dump(business_list_lasso, file)
+        with open('business_list_data', 'wb') as file:
+            pickle.dump(business_list_data, file)
     else:
         # If not reading in / processing data again, load the data
-        with open('loans_AB_processed', 'rb') as file:
-            business_list = pickle.load(file)
+        with open('business_list_lasso', 'rb') as file:
+            business_list_lasso = pickle.load(file)
+        with open('business_list_data', 'rb') as file:   
+            business_list_data = pickle.load(file)
+    
+    if args.readreviewdata:
+        business_list_lasso_reviewed, business_list_data_reviewed = load_review_data("yelp_dataset/yelp_academic_dataset_review.json", business_list_lasso, business_list_data)
+        with open('business_list_lasso_reviewed', 'wb') as file:
+            pickle.dump(business_list_lasso_reviewed, file)
+        with open('business_list_data_reviewed', 'wb') as file:
+            pickle.dump(business_list_data_reviewed, file)
+    else:
+        with open('business_list_lasso_reviewed', 'rb') as file:
+            business_list_lasso_reviewed = pickle.load(file)
+        with open('business_list_data_reviewed', 'rb') as file:
+            business_list_data_reviewed = pickle.load(file)
+
 
 
 if __name__ == '__main__':
