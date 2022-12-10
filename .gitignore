@@ -2,3 +2,5 @@ yelp_dataset/
 business_list/
 business_list_lasso/
 business_list_data/
+business_list_lasso_reviewed/
+business_list_data_reviewed/
