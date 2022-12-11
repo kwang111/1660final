@@ -315,16 +315,16 @@ def load_review_data(path, business_list_lasso, business_list_data):
         for review in f:
         # ♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡･･*･･♡ #
             review_dict = json.loads(review)
-            counter += 1
-            if counter > 10000:
-                break
+            # counter += 1
+            # if counter > 10000:
+            #     break
             business_id = review_dict["business_id"]
             # Check if review is for a business in our filtered dataset
             if business_id in business_list_lasso.keys():
                 counted_reviews += 1
                  # Print out progress
                 if counted_reviews % 1000 == 1:
-                    print("Loaded " + str(counted_reviews) + " businesses data")
+                    print("Loaded " + str(counted_reviews) + " review data")
                 temp_dict = temp_business_stats[business_id]
                 temp_dict.update({"total_reviews":temp_dict["total_reviews"] + 1})
 
@@ -553,21 +553,34 @@ def main(args):
             y_c = pickle.load(file)
         with open('features_c', 'rb') as file:
             features_c = pickle.load(file)
+
+    alphas = [0, 0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+
+    for alpha in alphas:
+        print("α Alpha set as: " + str(alpha))
+
+        print("🌉 Ridge on entire filtered dataset")
+        result_ridge = ridge_reg(X, y, alpha, features)
+
+        print("𓍯 Lasso on entire filtered dataset")
+        result_lasso = lasso_reg(X, y, alpha, features)
+
+        print("🌉 Ridge on filtered city dataset")
+        result_ridge_city = ridge_reg(X_c, y_c, alpha, features_c)
+
+        print("𓍯 Lasso on filtered city dataset")
+        result_lasso_city = lasso_reg(X_c, y_c, alpha, features_c)
     
-    print("Lasso on entire filtered dataset")
-    result = lasso_reg(X, y, 0.01, features)
-    print(result)
-    print("Lasso on filtered city dataset")
-    result_c = lasso_reg(X_c, y_c, 0.01, features_c)
-    print(result_c)
-
-    print("Ridge on entire filtered dataset")
-    result = ridge_reg(X, y, 0.01, features)
-    print(result)
-    print("Ridge on filtered city dataset")
-    result_c = ridge_reg(X_c, y_c, 0.01, features_c)
-    print(result_c)
-
+        results = [result_ridge, result_lasso, result_ridge_city, result_lasso_city]
+        result_file_names = ["result_ridge", "result_lasso", "result_ridge_city", "result_lasso_city"]
+        i = 0
+        for result in results:
+            with open("results/"+result_file_names[i]+str(alpha)+".csv", "w") as file:
+                writer = csv.writer(file)
+                writer.writerow(["Feature", "Coefficient"])
+                for row in range(len(result)):
+                    writer.writerow(result[row])
+            i +=1
 
 
 if __name__ == '__main__':
