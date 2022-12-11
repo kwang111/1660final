@@ -52,6 +52,9 @@ def parseArguments():
                         help="Read Review Data", action="store_true")
     parser.add_argument("-fd", "--formatdata",
                         help="Format Data for Lasso", action="store_true")
+    parser.add_argument("-lr", "--laridge",
+                        help="Perform Lasso and Ridge", action="store_true")
+    parser.add_argument("-c", "--city", action='store', type=str, help='The city-specific lasso/ridge')
     return parser.parse_args()
 
 
@@ -554,33 +557,68 @@ def main(args):
         with open('features_c', 'rb') as file:
             features_c = pickle.load(file)
 
-    alphas = [0, 0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+    if args.laridge:
 
-    for alpha in alphas:
-        print("α Alpha set as: " + str(alpha))
+        alphas = [0, 0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+        
+        for alpha in alphas:
+            print("α Alpha set as: " + str(alpha))
 
-        print("🌉 Ridge on entire filtered dataset")
-        result_ridge = ridge_reg(X, y, alpha, features)
+            print("🌉 Ridge on entire filtered dataset")
+            result_ridge = ridge_reg(X, y, alpha, features)
 
-        print("𓍯 Lasso on entire filtered dataset")
-        result_lasso = lasso_reg(X, y, alpha, features)
+            print("𓍯 Lasso on entire filtered dataset")
+            result_lasso = lasso_reg(X, y, alpha, features)
 
-        print("🌉 Ridge on filtered city dataset")
-        result_ridge_city = ridge_reg(X_c, y_c, alpha, features_c)
+            print("🌉 Ridge on filtered city dataset")
+            result_ridge_city = ridge_reg(X_c, y_c, alpha, features_c)
 
-        print("𓍯 Lasso on filtered city dataset")
-        result_lasso_city = lasso_reg(X_c, y_c, alpha, features_c)
+            print("𓍯 Lasso on filtered city dataset")
+            result_lasso_city = lasso_reg(X_c, y_c, alpha, features_c)
+        
+            results = [result_ridge, result_lasso, result_ridge_city, result_lasso_city]
+            result_file_names = ["result_ridge", "result_lasso", "result_ridge_city", "result_lasso_city"]
+            i = 0
+            for result in results:
+                with open("results/"+result_file_names[i]+str(alpha)+".csv", "w") as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Feature", "Coefficient"])
+                    for row in range(len(result)):
+                        writer.writerow(result[row])
+                i +=1
     
-        results = [result_ridge, result_lasso, result_ridge_city, result_lasso_city]
-        result_file_names = ["result_ridge", "result_lasso", "result_ridge_city", "result_lasso_city"]
-        i = 0
-        for result in results:
-            with open("results/"+result_file_names[i]+str(alpha)+".csv", "w") as file:
-                writer = csv.writer(file)
-                writer.writerow(["Feature", "Coefficient"])
-                for row in range(len(result)):
-                    writer.writerow(result[row])
-            i +=1
+    if args.city:
+        city_data = {}
+        counter = 0
+        for business in list(business_list_lasso_reviewed.keys()):
+            business_dict = business_list_lasso_reviewed[business]
+            if business_dict[args.city] == 1:
+                city_data.update({business:business_dict})
+                counter += 1
+        city_data = read_city_data("1660 final project extra features - the whole sheet_.csv", city_data, major_cities)
+        X, y, features = reformat_data(city_data)
+
+        alphas = [0, 0.01, 0.05, 0.1]
+        for alpha in alphas:
+            print("α Alpha set as: " + str(alpha))
+
+            print("🌉 Ridge on specific city dataset")
+            result_ridge = ridge_reg(X, y, alpha, features)
+
+            print("𓍯 Lasso on specific city dataset")
+            result_lasso = lasso_reg(X, y, alpha, features)
+        
+            results = [result_ridge, result_lasso]
+            result_file_names = ["result_ridge", "result_lasso"]
+            i = 0
+            for result in results:
+                with open("results/"+result_file_names[i]+args.city+str(alpha)+".csv", "w") as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Feature", "Coefficient"])
+                    for row in range(len(result)):
+                        writer.writerow(result[row])
+                i +=1
+
 
 
 if __name__ == '__main__':
